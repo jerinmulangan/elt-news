@@ -1,5 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QTimer
+
 from gui import NewsApp
 
 from scraper.cnn import get_cnn_world, get_cnn_us, get_cnn_politics, get_cnn_business, get_cnn_sports
@@ -11,6 +13,11 @@ from scraper.tldr_webdev import get_tldr_webdev_articles
 from scraper.tldr_devops import get_tldr_devops_articles
 from scraper.tldr_ai import get_tldr_ai_articles
 from scraper.tldr_data import get_tldr_data_articles
+
+import json
+from datetime import datetime
+from database_connect import init_db, upsert_articles
+
 
 import sys
 from pathlib import Path
@@ -64,9 +71,30 @@ def fetch_news(platforms, topics):
                 stories += func()
     return stories
 
+def scrape_and_store():
+    print(f"[{datetime.utcnow()}] Scraped")
+    raw = fetch_news()  
+    batch = [
+        {
+            "url":        story["url"],
+            "payload":    story,
+            "fetched_at": datetime.utcnow()
+        }
+        for story in raw
+    ]
+    upsert_articles(batch)
+    print(f"[{datetime.utcnow()}] Upserted {len(batch)} articles.")
 
 if __name__ == "__main__":
+    init_db()
+    scrape_and_store()
+
     app = QApplication(sys.argv)
     window = NewsApp(fetch_news)
+
+    timer = QTimer()
+    timer.timeout.connect(scrape_and_store)
+    timer.start(6 * 60 * 60 * 1000)
+
     window.show()
     sys.exit(app.exec_())
