@@ -15,18 +15,45 @@ def get_conn():
     return psycopg2.connect(DATABASE_URL)
 
 def init_db():
-    drop_sql = """
-    DROP TRIGGER IF EXISTS tsvectorupdate ON articles;
-    DROP FUNCTION IF EXISTS articles_tsv_trigger();
-    DROP INDEX IF EXISTS articles_tsv_idx;
-    DROP TABLE IF EXISTS articles;
-    """
+    schema_sql = """
+        CREATE TABLE IF NOT EXISTS articles (
+        id          SERIAL PRIMARY KEY,
+        url         TEXT        UNIQUE,
+        fetched_at  TIMESTAMP   NOT NULL,
+        payload     JSONB       NOT NULL,
+        tsv         TSVECTOR
+        );
+
+        CREATE OR REPLACE FUNCTION articles_tsv_trigger() RETURNS trigger AS $$
+        BEGIN
+        NEW.tsv :=
+            to_tsvector('english',
+            coalesce(NEW.payload->>'title','') || ' ' ||
+            coalesce(NEW.payload->>'body','')
+            );
+        RETURN NEW;
+        END
+        $$ LANGUAGE plpgsql;
+
+        DO $$
+        BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_trigger
+            WHERE tgname = 'tsvectorupdate'
+            AND tgrelid = 'articles'::regclass
+        ) THEN
+            CREATE TRIGGER tsvectorupdate
+            BEFORE INSERT OR UPDATE ON articles
+            FOR EACH ROW EXECUTE FUNCTION articles_tsv_trigger();
+        END IF;
+        END
+        $$;
+
+        CREATE INDEX IF NOT EXISTS articles_tsv_idx
+        ON articles USING GIN(tsv);
+        """
     with get_conn() as conn, conn.cursor() as cur:
-        cur.execute(drop_sql)
-        conn.commit()
-    with get_conn() as conn, conn.cursor() as cur:
-        with open("news_schema.sql", "r") as f:
-            cur.execute(f.read())
+        cur.execute(schema_sql)
         conn.commit()
 
 def upsert_articles(articles):
