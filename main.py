@@ -15,7 +15,7 @@ from scraper.tldr_ai import get_tldr_ai_articles
 from scraper.tldr_data import get_tldr_data_articles
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from database_connect import init_db, upsert_articles
 
 
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-def fetch_news(platforms, topics):
+def fetch_news(platforms=None, topics=None):
     platform_topic_map = {
         "CNN": {
             "World": get_cnn_world,
@@ -62,33 +62,65 @@ def fetch_news(platforms, topics):
         platforms = all_platforms
     if not topics:
         topics = all_topics
-
+    
     stories = []
     for platform in platforms:
+        pt_map = platform_topic_map.get(platform, {})
         for topic in topics:
-            func = platform_topic_map.get(platform, {}).get(topic)
-            if func:
-                stories += func()
+            fn = pt_map.get(topic)
+            if not fn:
+                continue
+
+            for item in fn():
+                if isinstance(item, dict):
+                    title = item.get("title")
+                    link  = item.get("url")
+
+                elif isinstance(item, tuple):
+                    if len(item) == 2:
+                        title, link = item
+                    elif len(item) >= 3:
+                        if item[0] == platform:
+                            _, title, link, *rest = item
+                        else:
+                            title, link, *rest = item
+                    else:
+                        continue
+
+                else:
+                    continue
+
+                if not title or not link:
+                    continue
+
+                stories.append((platform, title, link))
+
     return stories
 
 def scrape_and_store():
-    print(f"[{datetime.utcnow()}] Scraped")
-    raw = fetch_news()  
-    batch = [
-        {
-            "url":        story["url"],
-            "payload":    story,
-            "fetched_at": datetime.utcnow()
-        }
-        for story in raw
-    ]
+    now = datetime.now(timezone.utc)
+    print(f"[{now}] Scrape Start")
+
+    raw = fetch_news() 
+    batch = []
+    for source, title, link in raw:
+        batch.append({
+            "url":        link,
+            "payload": {
+                "source": source,
+                "title":  title,
+                "url":    link
+            },
+            "fetched_at": now
+        })
+
     upsert_articles(batch)
-    print(f"[{datetime.utcnow()}] Upserted {len(batch)} articles.")
+    print(f"[{datetime.now(timezone.utc)}] Upserted {len(batch)} articles.")
 
 if __name__ == "__main__":
     init_db()
     scrape_and_store()
-
+    print(fetch_news())
     app = QApplication(sys.argv)
     window = NewsApp(fetch_news)
 
