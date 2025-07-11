@@ -1,6 +1,7 @@
 import os
 import logging
 import psycopg2
+import json
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 from transformers import pipeline, LongformerForSequenceClassification, LongformerTokenizer, AutoTokenizer
@@ -25,6 +26,23 @@ if not DATABASE_URL:
 
 def get_conn():
     return psycopg2.connect(DATABASE_URL)
+
+def init_sentiment_table():
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS article_sentiment (
+        id SERIAL PRIMARY KEY,
+        article_id INTEGER NOT NULL REFERENCES articles(id),
+        aggregate_score REAL,
+        sentence_scores JSONB,
+        doc_scores JSONB,
+        analyzed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    """
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(create_sql)
+        conn.commit()
+        logging.info("Ensured article_sentiment table exists")
+
 
 def fetch_articles_with_content():
     query = """
@@ -82,12 +100,34 @@ def classify_hierarchical(article_text):
         'doc_scores': doc_scores
     }
 
+
+def save_sentiment(article_id, result):
+    insert_sql = """
+    INSERT INTO article_sentiment
+    (article_id, aggregate_score, sentence_scores, doc_scores)
+    VALUES (%s, %s, %s::jsonb, %s::jsonb);
+    """
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            insert_sql,
+            (
+                article_id,
+                result['aggregate_sentence_score'],
+                json.dumps(result['sentence_scores']),
+                json.dumps(result['doc_scores'])
+            )
+        )
+        conn.commit()
+    logging.info(f"Saved sentiment for article {article_id}")
+
 if __name__ == '__main__':
+    logging.info("Starting hierarchical sentiment analysis")
+    init_sentiment_table()
     articles = fetch_articles_with_content()
     for art in articles:
         aid = art['id']
         content = art['content']
         logging.info(f"Classifying article {aid}")
-        results = classify_hierarchical(content)
-        print(f"Article {aid}: agg sentence score = {results['aggregate_sentence_score']}")
-        print(f"Document-level scores: {results['doc_scores']}\n")
+        result = classify_hierarchical(content)
+        save_sentiment(aid, result)
+    logging.info("Completed sentiment analysis run")
