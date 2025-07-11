@@ -8,16 +8,13 @@ BASE_URL = "https://tldr.tech/devops"
 
 def get_tldr_devops_articles():
     headers = {"User-Agent": "Mozilla/5.0"}
-    
     for offset in range(2): 
         date = (datetime.now() - timedelta(days=offset)).strftime("%Y-%m-%d")
         url = f"{BASE_URL}/{date}"
         try:
             res = requests.get(url, headers=headers, timeout=10)
-
             if res.url.rstrip("/") != url.rstrip("/"):
                 continue
-
             soup = BeautifulSoup(res.text, "html.parser")
             articles = []
             
@@ -28,14 +25,11 @@ def get_tldr_devops_articles():
                     if title and href:
                         link = fix_tldr_link(href)
                         articles.append(("TLDR DevOps", title, link))
-            
             if articles:
                 return articles
-
         except Exception as e:
             print(f"Error fetching {url}: {e}")
             continue
-
     return [] 
 
 if __name__ == "__main__":

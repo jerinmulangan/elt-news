@@ -18,28 +18,22 @@ def init_db():
     drop_sql = """
     DROP TRIGGER IF EXISTS tsvectorupdate ON articles;
     DROP FUNCTION IF EXISTS articles_tsv_trigger();
-
-    -- drop index and table
     DROP INDEX IF EXISTS articles_tsv_idx;
     DROP TABLE IF EXISTS articles;
     """
-
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute(drop_sql)
         conn.commit()
-
     with get_conn() as conn, conn.cursor() as cur:
         with open("news_schema.sql", "r") as f:
             cur.execute(f.read())
         conn.commit()
 
 def upsert_articles(articles):
-
     unique = {}
     for art in articles:
         unique[art["url"]] = art
     deduped = list(unique.values())
-
     sql = """
     INSERT INTO articles (url, payload, fetched_at)
     VALUES %s

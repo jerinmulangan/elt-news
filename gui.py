@@ -70,10 +70,8 @@ class NewsApp(QWidget):
         self.selected_platforms = self.get_selected_platforms()
         self.selected_topics = self.get_selected_topics()
         stories = self.fetch_news_callback(self.selected_platforms, self.selected_topics)
-
         for i in reversed(range(self.inner_layout.count())):
             self.inner_layout.itemAt(i).widget().setParent(None)
-
         for source, title, link in stories:
             lbl = QLabel(f"<b>[{source}]</b> <a href='{link}'>{title}</a>")
             lbl.setOpenExternalLinks(True)

@@ -6,15 +6,12 @@ from datetime import datetime, timedelta
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-
 from scraper.tldr_utils import fix_tldr_link
-
 
 BASE_URL = "https://tldr.tech/infosec"
 
 def get_tldr_infosec_articles():
     headers = {"User-Agent": "Mozilla/5.0"}
-
     for offset in range(2):
         date = (datetime.now() - timedelta(days=offset)).strftime("%Y-%m-%d")
         url = f"{BASE_URL}/{date}"
@@ -23,7 +20,6 @@ def get_tldr_infosec_articles():
             if res.url.rstrip("/") != url.rstrip("/"):
                 continue  
             soup = BeautifulSoup(res.text, "html.parser")
-
             articles = []
             for section in soup.select("section")[1:]:  
                 for a_tag in section.select("article a"):
@@ -32,13 +28,11 @@ def get_tldr_infosec_articles():
                     if title and href:
                         full_link = fix_tldr_link(href)
                         articles.append(("TLDR Infosec", title, full_link))
-
             if articles:
                 return articles
         except Exception as e:
             print(f"Error fetching {url}: {e}")
             continue
-
     return []
 
 if __name__ == "__main__":

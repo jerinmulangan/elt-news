@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 
 BASE = "https://www.npr.org"
 
-
 def _extract_links(soup, selector, base=BASE, max_count=10):
     stories = []
     for item in soup.select(selector):
@@ -20,30 +19,25 @@ def _extract_links(soup, selector, base=BASE, max_count=10):
             break
     return stories
 
-
 def get_npr_world():
     url = f"{BASE}/sections/world/"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "article h2 a", max_count=10)
-
 
 def get_npr_us():
     url = f"{BASE}/sections/national/"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "article h2 a", max_count=10)
 
-
 def get_npr_politics():
     url = f"{BASE}/sections/politics/"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "article h2 a", max_count=10)
 
-
 def get_npr_business():
     url = f"{BASE}/sections/business/"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "article h2 a", max_count=10)
-
 
 def get_npr_news():
     return (

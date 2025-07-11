@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 
 BASE = "https://www.nbcnews.com"
 
-
 def _extract_links(soup, selector, base=BASE, max_count=10):
     stories = []
     for item in soup.select(selector):
@@ -20,36 +19,30 @@ def _extract_links(soup, selector, base=BASE, max_count=10):
             break
     return stories
 
-
 def get_nbc_world():
     url = f"{BASE}/world"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "h2 a, h3 a, h5, a.card__link", max_count=10)
-
 
 def get_nbc_us():
     url = f"{BASE}/us-news"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "h2 a, h3 a, h5, a.card__link", max_count=10)
 
-
 def get_nbc_politics():
     url = f"{BASE}/politics"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "h2 a, h3 a, h5, a.card__link", max_count=10)
-
 
 def get_nbc_business():
     url = f"{BASE}/business"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "h2 a, h3 a, h5, a.card__link", max_count=10)
 
-
 def get_nbc_sports():
     url = f"{BASE}/sports"
     soup = BeautifulSoup(requests.get(url).text, "html.parser")
     return _extract_links(soup, "h2 a, h3 a, h5, a.card__link", max_count=10)
-
 
 def get_nbc_news():
     return (
