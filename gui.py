@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QTimer, Qt
 
+
 class NewsApp(QWidget):
     def __init__(self, fetch_news_callback):
         super().__init__()
@@ -17,6 +18,7 @@ class NewsApp(QWidget):
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
+        # --- Platform selector ---
         platform_group = QGroupBox("Select News Platforms")
         platform_layout = QVBoxLayout()
         self.platform_selector = QListWidget()
@@ -29,11 +31,15 @@ class NewsApp(QWidget):
         platform_group.setLayout(platform_layout)
         self.layout.addWidget(platform_group)
 
+        # --- Topic selector ---
         topic_group = QGroupBox("Select News Topics")
         topic_layout = QVBoxLayout()
         self.topic_selector = QListWidget()
         self.topic_selector.setSelectionMode(QListWidget.MultiSelection)
-        for topic in ["World", "US News", "Politics", "Business", "Sports", "Tech", "Infosec", "WebDev", "DevOps", "AI", "Data"]:
+        for topic in [
+            "World", "US News", "Politics", "Business", "Sports",
+            "Tech", "Infosec", "WebDev", "DevOps", "AI", "Data"
+        ]:
             item = QListWidgetItem(topic)
             item.setSelected(topic in self.selected_topics)
             self.topic_selector.addItem(item)
@@ -41,6 +47,7 @@ class NewsApp(QWidget):
         topic_group.setLayout(topic_layout)
         self.layout.addWidget(topic_group)
 
+        # --- Scroll area for articles ---
         self.scroll = QScrollArea()
         self.inner_widget = QWidget()
         self.inner_layout = QVBoxLayout()
@@ -49,11 +56,13 @@ class NewsApp(QWidget):
         self.scroll.setWidgetResizable(True)
         self.layout.addWidget(self.scroll)
 
+        # --- Refresh button ---
         refresh_button = QPushButton("Refresh News")
         refresh_button.setStyleSheet("padding: 10px; font-weight: bold;")
         refresh_button.clicked.connect(self.refresh_news)
         self.layout.addWidget(refresh_button)
 
+        # --- Auto refresh timer ---
         self.timer = QTimer()
         self.timer.timeout.connect(self.refresh_news)
         self.timer.start(30 * 60 * 1000)
@@ -70,10 +79,17 @@ class NewsApp(QWidget):
         self.selected_platforms = self.get_selected_platforms()
         self.selected_topics = self.get_selected_topics()
         stories = self.fetch_news_callback(self.selected_platforms, self.selected_topics)
+
+        # clear old widgets
         for i in reversed(range(self.inner_layout.count())):
             self.inner_layout.itemAt(i).widget().setParent(None)
-        for source, title, link in stories:
-            lbl = QLabel(f"<b>[{source}]</b> <a href='{link}'>{title}</a>")
+
+        # add new ones
+        for source, topic, title, link in stories:
+            lbl = QLabel(
+                f"<b>[{source} | {topic}]</b> "
+                f"<a href='{link}'>{title}</a>"
+            )
             lbl.setOpenExternalLinks(True)
             lbl.setWordWrap(True)
             lbl.setTextInteractionFlags(Qt.TextBrowserInteraction)

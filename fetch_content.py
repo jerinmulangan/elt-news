@@ -22,7 +22,7 @@ def get_conn():
 
 def fetch_missing_articles():
     query = """
-        SELECT id, payload->>'url' AS url
+        SELECT id, payload
         FROM articles
         WHERE NOT (payload ? 'content');
         """
@@ -66,14 +66,16 @@ def extract_content(url):
     logging.info(f"Trafilatura result insufficient, falling back for {url}")
     return extract_content_readability(url)
 
-def update_article_content(article_id, content):
+def update_article_content(article_id, payload, content):
+    # Merge content into the existing payload without dropping topic/title/source
+    payload["content"] = content
     query = """
         UPDATE articles
-        SET payload = jsonb_set(payload, '{content}', to_jsonb(%s::text))
+        SET payload = %s
         WHERE id = %s;
         """
     with get_conn() as conn, conn.cursor() as cur:
-        cur.execute(query, (content, article_id))
+        cur.execute(query, (json.dumps(payload), article_id))
         conn.commit()
         logging.info(f"Updated article id {article_id} in DB")
 
@@ -84,11 +86,12 @@ def main():
         return
     for art in missing:
         aid = art['id']
-        url = art['url']
+        payload = art['payload']
+        url = payload.get("url")
         logging.info(f"Processing article id {aid}, url: {url}")
         content = extract_content(url)
         if content:
-            update_article_content(aid, content)
+            update_article_content(aid, payload, content)
         else:
             logging.warning(f"Content extraction returned None for article id {aid}")
 

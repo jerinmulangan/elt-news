@@ -88,7 +88,7 @@ def fetch_news(platforms=None, topics=None):
         platforms = all_platforms
     if not topics:
         topics = all_topics
-    
+
     stories = []
     for platform in platforms:
         pt_map = platform_topic_map.get(platform, {})
@@ -108,22 +108,27 @@ def fetch_news(platforms=None, topics=None):
                     link   = item.get("url") or item.get("link")
                 else:
                     continue
+
                 if not (title and link):
                     continue
-                stories.append((source, title, link))
+
+                # Add topic into the tuple
+                stories.append((source, topic, title, link))
 
     return stories
+
 
 def scrape_and_store():
     now = datetime.now(timezone.utc)
     print(f"[{now}] Scrape Start")
-    raw = fetch_news() 
+    raw = fetch_news()
     batch = []
-    for source, title, link in raw:
+    for source, topic, title, link in raw:
         batch.append({
-            "url":        link,
+            "url": link,
             "payload": {
                 "source": source,
+                "topic":  topic, # added topic
                 "title":  title,
                 "url":    link
             },

@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import execute_values
 
-
 load_dotenv()  
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -29,7 +28,8 @@ def init_db():
         NEW.tsv :=
             to_tsvector('english',
             coalesce(NEW.payload->>'title','') || ' ' ||
-            coalesce(NEW.payload->>'body','')
+            coalesce(NEW.payload->>'body','') || ' ' ||
+            coalesce(NEW.payload->>'topic','')
             );
         RETURN NEW;
         END
@@ -57,10 +57,12 @@ def init_db():
         conn.commit()
 
 def upsert_articles(articles):
+    # Deduplicate by URL
     unique = {}
     for art in articles:
         unique[art["url"]] = art
     deduped = list(unique.values())
+
     sql = """
     INSERT INTO articles (url, payload, fetched_at)
     VALUES %s
@@ -68,10 +70,15 @@ def upsert_articles(articles):
       SET payload    = EXCLUDED.payload,
           fetched_at = EXCLUDED.fetched_at;
     """
-    records = [
-        (art["url"], json.dumps(art["payload"]), art["fetched_at"])
-        for art in deduped
-    ]
+
+    # Make sure "topic" is inside payload before saving
+    records = []
+    for art in deduped:
+        payload = art["payload"]
+        if "topic" not in payload:
+            payload["topic"] = art.get("topic") or "Unknown"
+        records.append((art["url"], json.dumps(payload), art["fetched_at"]))
+
     with get_conn() as conn, conn.cursor() as cur:
         execute_values(cur, sql, records)
         conn.commit()
